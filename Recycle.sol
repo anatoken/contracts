@@ -132,7 +132,7 @@ contract Reycle{
     }
 
      function getRandom() private view returns(uint256) {
-        return uint256(keccak256(abi.encodePacked(block.difficulty, block.coinbase, block.timestamp))); //TODO improve
+        return uint256(keccak256(abi.encodePacked(block.difficulty, block.coinbase, block.timestamp)));
     }
 }
 
