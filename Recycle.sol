@@ -3,9 +3,11 @@ import "./access-control/RBAC.sol"; /// We should use this for role based access
 import "./Token.sol";
 
 contract Reycle{
-
+    
+  
     uint public averageTimeToCollectPlastic = 2;
     uint public totalCollectedPlastic = 0;
+
     uint public minWeight = 0;
     Token public anaToken;
 
@@ -13,12 +15,19 @@ contract Reycle{
     constructor(Token _token) public {
         anaToken = _token;
     }
+    bool public rightRole;
+    RBACExtend roleHelper;
+
 
     struct CollectedPlastic{
         address collector;
         uint id;
         uint kg;
         uint dateCollected;
+    }
+    
+    constructor() public {
+        roleHelper = new RBACExtend();
     }
 
     event PlasticIsAccounted(
@@ -50,7 +59,7 @@ contract Reycle{
     mapping(address => uint) collectorPlasticCount;
     mapping(address => CollectedPlastic[]) collectorToCollectedPlastic;
 
-    function _sendAnaTokenToCollector(address _collector, uint _kg) private {
+    function _sendAnaTokenToCollector(address _collector, uint _kg) private hasRecyclePlantRole {
         uint256 id = getRandom();
         uint dateCollected = now;
         collectorToCollectedPlastic[_collector].push( CollectedPlastic(_collector, id, _kg, dateCollected));
@@ -77,13 +86,31 @@ contract Reycle{
             dateCollected,
             averageTimeToCollectPlastic
         );
+
+    modifier hasCollectorRole { require(roleHelper.userHasRole("collector"), "User doesn't have this role"); _;}
+    modifier hasRecyclePlantRole { require(roleHelper.userHasRole("recyclePlant"), "User doesn't have this role"); _;}
+    modifier hasRootRole {require(roleHelper.userHasRole("ROOT"), "User doesn't have this role"); _;} //might not be needed
+
+    /// mappings
+    mapping(uint => address) public plasticToOwner;
+    mapping(address => uint) ownerPlasticCount;
+    
+    /*
+     * Example function on how to use the RBACExtend contract
+    */
+    function roleExampleFunction() public hasRootRole view returns(string memory){
+        return "Has role";
+    }
+    
+    function _roleExampleFunction() public payable  returns (string memory) {
+        roleExampleFunction();
     }
 
     function sendAnaTokenToCollector(address collector, uint kg) public payable {
         _sendAnaTokenToCollector(collector, kg);
     }
 
-    function getCollectedPlasticFromUser(address user) external view returns (uint) {
+    function getCollectedPlasticFromUser(address user) external hasCollectorRole view returns (uint) {
         //get all the collected plastic from a user
         return collectorPlasticCount[user];
     }
@@ -108,3 +135,4 @@ contract Reycle{
         return uint256(keccak256(abi.encodePacked(block.difficulty, block.coinbase, block.timestamp))); //TODO improve
     }
 }
+
