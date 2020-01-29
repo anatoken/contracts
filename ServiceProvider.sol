@@ -1,80 +1,157 @@
-pragma solidity ^0.5.11;
+pragma solidity ^0.6.1;
 
 contract ServiceProvider {
 
     struct Service {
-    string serviceType;
-    string serviceName;
-    string location;
-    uint startdate;
-    uint enddate;
-    string instructor;
-    string costs;
+      uint code;
+      string serviceType;
+      string serviceName;
+      string location;
+      uint startdate;
+      uint enddate;
+      string instructor;
+      string costs;
     }
 
     Service[] public services;
 
-    event ServiceIsMade(string serviceName);
-    event ServiceIsUpdated(string serviceName);
-    event ServiceIsDeleted(string serviceName);
-    event ServiceIsRead(string serviceName);
+    mapping(address => Service[]) public serviseCreator;
+    mapping(uint => Service) public serviceCode;
 
-    uint totalElements = 0;
+    event ServiceIsCreated(uint code, string serviceName);
+    event ServiceIsUpdated(uint code, string serviceName);
+    event ServiceIsDeleted(uint code);
+    event ServiceIsRead(uint code, string serviceName);
+    event EmitServices(address owner, uint[]);
 
-    function makeService(string serviceType, string serviceName, string location, uint startdate, uint enddate, string instructor, string costs) public {
-        Service newService = Service(serviceType, serviceName, location, startdate, enddate, instructor, costs);
-        services.push(newService);
-        totalElements++;
-        emit ServiceIsMade(serviceName);
-    }
+    uint totalServices = 0;
 
-    function updateService(string serviceType, string serviceName, string location, uint startdate, uint enddate, string instructor, string costs) public returns (bool success) {
-          for(uint256 i = 0; i < totalElements; i++){
-           if(compareStrings(services[i].serviceName, serviceName)){
-              services[i].serviceType = serviceType;
-              services[i].serviceName = serviceName;
-              services[i].location = location;
-              services[i].startdate = startdate;
-              services[i].enddate = enddate;
-              services[i].instructor = instructor;
-              services[i].costs = costs;
-              emit ServiceIsUpdated(serviceName);
-              return true;
-           }
-       }
-       return false;
-    }
+   function createService(
+      uint code,
+      string memory serviceType,
+      string memory serviceName,
+      string memory location,
+      uint startdate,
+      uint enddate,
+      string memory instructor,
+      string memory costs
+   ) public {
+      serviseCreator[msg.sender].push(Service(code, serviceType, serviceName, location, startdate, enddate, instructor, costs));
+      serviceCode[code] = Service(code, serviceType, serviceName, location, startdate, enddate, instructor, costs);
+      totalServices++;
+      emit ServiceIsCreated(code, serviceName);
+   }
 
-    function deleteService(string serviceName) public returns (bool success) {
-        require(totalElements > 0, 'No element is found');
-        for(uint256 i = 0; i < totalElements; i++){
-           if(compareStrings(services[i].serviceName, serviceName)){
-              services[i] = services[totalElements-1];
-              delete services[totalElements-1];
-              totalElements--;
-              services.length--;
-              emit ServiceIsDeleted(serviceName);
-              return true;
-           }
-       }
-       return false;
-    }
+   function updateService(
+      uint code,
+      string memory serviceType,
+      string memory serviceName,
+      string memory location,
+      uint startdate,
+      uint enddate,
+      string memory instructor,
+      string memory costs
+   ) public returns (bool success) {
+      serviseCreator[msg.sender].push(Service(code, serviceType, serviceName, location, startdate, enddate, instructor, costs));
+      serviceCode[code] = Service(code, serviceType, serviceName, location, startdate, enddate, instructor, costs);
+      for(uint256 i = 0; i < serviseCreator[msg.sender].length; i++){
+         Service memory s = serviseCreator[msg.sender][i];
+         if(codesEqual(code, s.code)){
+            s.serviceType = serviceType;
+            s.serviceName = serviceName;
+            s.location = location;
+            s.startdate = startdate;
+            s.enddate = enddate;
+            s.instructor = instructor;
+            s.costs = costs;
+            emit ServiceIsUpdated(code, serviceName);
+            return true;
+         }
+      }
+      return false;
+   }
 
-    function readService(string serviceName) public view
-    returns (string serviceType, string serviceName, string location, uint startdate, uint enddate, string instructor, string costs) {
-            for(uint256 i = 0; i < totalElements; i++) {
-           if(compareStrings(services[i].serviceName, serviceName)){
-              return (services[i].serviceType, services[i].serviceName, services[i].location, services[i].startdate, services[i].enddate, services[i].instructor, services[i].costs);
-              emit ServiceIsRead(serviceName);
-           }
-       }
-       revert('Service is not found');
-    }
+   function deleteService(uint code) public returns (bool success) {
+      require(totalServices > 0, 'No services are found');
+      for(uint256 i = 0; i < serviseCreator[msg.sender].length; i++){
+         if(codesEqual(code, serviseCreator[msg.sender][i].code)){
+            serviseCreator[msg.sender][i] = serviseCreator[msg.sender][serviseCreator[msg.sender].length-1];
+            delete serviseCreator[msg.sender][serviseCreator[msg.sender].length-1];
+            totalServices--;
+            emit ServiceIsDeleted(code);
+            return true;
+         }
+      }
+      return false;
+   }
 
-    function compareStrings (string a, string b)  internal pure returns (bool){
-       return keccak256(a) == keccak256(b);
-    }
+   function findServiceByCode (uint code) public payable returns (
+      uint code_,
+      string memory serviceType,
+      string memory serviceName,
+      string memory location,
+      uint startdate,
+      uint enddate,
+      string memory instructor,
+      string memory costs
+   ) {
+      emit ServiceIsRead(code, serviceCode[code].serviceName);
+      Service memory s = serviceCode[code];
+      return (
+         s.code,
+         s.serviceType,
+         s.serviceName,
+         s.location,
+         s.startdate,
+         s.enddate,
+         s.instructor,
+         s.costs
+      );
+   }
 
+   function findServiceByName (string memory serviceName) public payable returns (
+      uint code,
+      string memory serviceType,
+      string memory serviceName_,
+      string memory location,
+      uint startdate,
+      uint enddate,
+      string memory instructor,
+      string memory costs
+   ) {
+      for(uint256 i = 0; i < serviseCreator[msg.sender].length; i++){
+         Service memory s = serviseCreator[msg.sender][i];
+         if(nameEquals(serviceName, s.serviceName)){
+            emit ServiceIsRead(code, serviceName);
+            return (
+               s.code,
+               s.serviceType,
+               s.serviceName,
+               s.location,
+               s.startdate,
+               s.enddate,
+               s.instructor,
+               s.costs
+            );
+         }
+      }
+      revert('Service is not found');
+   }
 
+   function emitServices() public payable {
+      uint[] memory codes;
+      for(uint256 i = 0; i < serviseCreator[msg.sender].length; i++){
+         codes[i] = serviseCreator[msg.sender][i].code;
+      }
+      emit EmitServices(msg.sender, codes);
+   }
 
-    }
+   function codesEqual (uint a, uint b) internal pure returns (bool) {
+      return a == b;
+   }
+
+   function nameEquals (string memory a, string memory b)  internal pure returns (bool){
+      return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))) );
+   }
+
+}
